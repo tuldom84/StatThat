@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0E1114" />
+  <meta name="description" content="StatThat — NFL schedules, standings, and stats powered by SofaScore data." />
+  <title>StatThat — NFL Stats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --charcoal: #0E1114;
+      --chalk: #E7EBEF;
+      --steel: #9AA8B5;
+      --steel-dim: #6B7A88;
+      --surface: #161A1F;
+      --surface-2: #1C2229;
+      --border: #2A323C;
+      --accent: #3B82F6;
+      --win: #22C55E;
+      --loss: #EF4444;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      background: var(--charcoal);
+      color: var(--chalk);
+      min-height: 100%;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding-top: var(--safe-top);
+      padding-bottom: calc(64px + var(--safe-bottom));
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(14,17,20,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+    }
+    .brand { display: flex; align-items: baseline; gap: 8px; }
+    .brand h1 {
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .brand span {
+      font-size: 0.7rem;
+      color: var(--steel);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-top: 12px;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 3px;
+    }
+    .tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--steel);
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 8px 4px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab.active {
+      background: var(--surface-2);
+      color: var(--chalk);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    main { flex: 1; padding: 12px 16px; overflow-y: auto; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--steel);
+      margin: 16px 0 8px;
+      font-weight: 600;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .game {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .team { display: flex; flex-direction: column; gap: 2px; }
+    .team.home { text-align: right; }
+    .team.away { text-align: left; }
+    .team-name { font-weight: 600; font-size: 0.95rem; }
+    .score-block { text-align: center; min-width: 64px; }
+    .score {
+      font-size: 1.35rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    .status { font-size: 0.7rem; color: var(--steel); margin-top: 2px; }
+    .status.live { color: #F97316; font-weight: 600; }
+    .standings-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .standings-table th {
+      text-align: left;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--steel);
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .standings-table th:not(:first-child) { text-align: right; }
+    .standings-table td { padding: 10px 4px; border-bottom: 1px solid var(--border); }
+    .standings-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    .standings-table tr:last-child td { border-bottom: none; }
+    .team-cell { font-weight: 500; }
+    .playoff { border-left: 2px solid var(--accent); padding-left: 6px !important; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .stat-label { font-size: 0.7rem; color: var(--steel); text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-value { font-size: 1.4rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .stat-sub { font-size: 0.75rem; color: var(--steel-dim); margin-top: 2px; }
+    .settings-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    label { font-size: 0.8rem; color: var(--steel); }
+    input[type="url"], input[type="text"] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--chalk);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 0.9rem;
+    }
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .notice {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.85rem;
+      color: var(--steel);
+      margin-bottom: 16px;
+    }
+    .notice strong { color: var(--chalk); }
+    .loading { text-align: center; padding: 40px; color: var(--steel); }
+    .error { color: var(--loss); font-size: 0.85rem; margin-top: 8px; }
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(14,17,20,0.95);
+      border-top: 1px solid var(--border);
+      padding: 8px 16px calc(8px + var(--safe-bottom));
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      font-size: 0.7rem;
+      color: var(--steel-dim);
+      z-index: 20;
+    }
+    footer a { color: var(--steel); text-decoration: none; }
+    code { font-size: 0.8em; background: var(--surface); padding: 1px 4px; border-radius: 3px; }
+    @media (min-width: 640px) {
+      .app { max-width: 560px; }
+      .stat-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <h1>StatThat</h1>
+        <span>NFL</span>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="schedule" role="tab" aria-selected="true">Schedule</button>
+        <button class="tab" data-tab="standings" role="tab">Standings</button>
+        <button class="tab" data-tab="stats" role="tab">Stats</button>
+        <button class="tab" data-tab="settings" role="tab">Settings</button>
+      </nav>
+    </header>
+    <main>
+      <div id="schedule" class="panel active">
+        <div class="notice">
+          <strong>Demo mode</strong> — sample week data. Point Settings at a running <a href="https://github.com/tunjayoff/sofascore_scraper" style="color:var(--accent)">sofascore_scraper</a> instance for live data (NFL tournament id 9464).
+        </div>
+        <div id="schedule-list"></div>
+      </div>
+      <div id="standings" class="panel">
+        <div class="section-title">AFC</div>
+        <div class="card"><table class="standings-table" id="afc-table"><thead><tr><th>Team</th><th>W</th><th>L</th><th>T</th><th>PCT</th></tr></thead><tbody></tbody></table></div>
+        <div class="section-title">NFC</div>
+        <div class="card"><table class="standings-table" id="nfc-table"><thead><tr><th>Team</th><th>W</th><th>L</th><th>T</th><th>PCT</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div id="stats" class="panel">
+        <div class="section-title">League leaders (demo)</div>
+        <div class="stat-grid" id="stats-grid"></div>
+      </div>
+      <div id="settings" class="panel">
+        <div class="settings-row">
+          <label for="api-base">SofaScore Scraper API base URL</label>
+          <input type="url" id="api-base" placeholder="http://127.0.0.1:8000" value="" />
+        </div>
+        <div class="settings-row">
+          <label for="tournament-id">Tournament ID (NFL = 9464)</label>
+          <input type="text" id="tournament-id" value="9464" />
+        </div>
+        <button class="btn" id="save-settings">Save &amp; Reload</button>
+        <p class="error" id="settings-msg" style="display:none"></p>
+        <div class="notice" style="margin-top:20px">
+          <strong>How to run live data</strong><br>
+          1. Clone and start sofascore_scraper (Docker or <code>ssc serve</code>).<br>
+          2. Follow NFL: <code>ssc follows add tournament 9464 --name NFL --sport american-football --seasons last:1</code><br>
+          3. Enable standings if needed and run <code>ssc sync</code><br>
+          4. Enter the API base above (default http://127.0.0.1:8000).<br>
+          Full docs in the project README.
+        </div>
+      </div>
+    </main>
+    <footer>
+      <span>StatThat</span>
+      <a href="https://github.com/tuldom84/StatThat" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/tunjayoff/sofascore_scraper" target="_blank" rel="noopener">Data source</a>
+    </footer>
+  </div>
+  <script>
+    const DEMO_GAMES = [
+      { home: "Chiefs", away: "Ravens", homeScore: 27, awayScore: 20, status: "Final", week: 1 },
+      { home: "Bills", away: "Dolphins", homeScore: 31, awayScore: 10, status: "Final", week: 1 },
+      { home: "Eagles", away: "Packers", homeScore: 34, awayScore: 29, status: "Final", week: 1 },
+      { home: "49ers", away: "Jets", homeScore: 24, awayScore: 17, status: "Final", week: 1 },
+      { home: "Cowboys", away: "Browns", homeScore: null, awayScore: null, status: "Sun 1:00 PM", week: 2 },
+      { home: "Lions", away: "Buccaneers", homeScore: null, awayScore: null, status: "Sun 4:25 PM", week: 2 },
+      { home: "Ravens", away: "Raiders", homeScore: null, awayScore: null, status: "Mon 8:15 PM", week: 2 },
+    ];
+    const DEMO_STANDINGS = {
+      AFC: [
+        { team: "Ravens", w: 1, l: 0, t: 0, pct: 1.000 },
+        { team: "Chiefs", w: 1, l: 0, t: 0, pct: 1.000 },
+        { team: "Bills", w: 1, l: 0, t: 0, pct: 1.000 },
+        { team: "Dolphins", w: 0, l: 1, t: 0, pct: 0.000 },
+        { team: "Raiders", w: 0, l: 0, t: 0, pct: 0.000 },
+        { team: "Browns", w: 0, l: 0, t: 0, pct: 0.000 },
+      ],
+      NFC: [
+        { team: "Eagles", w: 1, l: 0, t: 0, pct: 1.000 },
+        { team: "49ers", w: 1, l: 0, t: 0, pct: 1.000 },
+        { team: "Packers", w: 0, l: 1, t: 0, pct: 0.000 },
+        { team: "Jets", w: 0, l: 1, t: 0, pct: 0.000 },
+        { team: "Cowboys", w: 0, l: 0, t: 0, pct: 0.000 },
+        { team: "Lions", w: 0, l: 0, t: 0, pct: 0.000 },
+      ]
+    };
+    const DEMO_STATS = [
+      { label: "Passing Yards", value: "312", sub: "J. Allen · BUF" },
+      { label: "Rushing Yards", value: "128", sub: "S. Barkley · PHI" },
+      { label: "Receiving Yards", value: "147", sub: "C. Kupp · LAR" },
+      { label: "Sacks", value: "3.0", sub: "M. Parsons · DAL" },
+      { label: "Interceptions", value: "2", sub: "P. Surtain II · DEN" },
+      { label: "FG Made", value: "3/3", sub: "J. Tucker · BAL" },
+    ];
+    const state = {
+      apiBase: localStorage.getItem("statthat_api") || "",
+      tournamentId: localStorage.getItem("statthat_tid") || "9464",
+      mode: "demo"
+    };
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => { t.classList.remove("active"); t.setAttribute("aria-selected", "false"); });
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        btn.setAttribute("aria-selected", "true");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+    function renderSchedule(games) {
+      const el = document.getElementById("schedule-list");
+      if (!games.length) { el.innerHTML = "<div class=\"loading\">No games found.</div>"; return; }
+      let html = "";
+      let lastWeek = null;
+      games.forEach(g => {
+        if (g.week !== lastWeek) { html += `<div class="section-title">Week ${g.week || "?"}</div>`; lastWeek = g.week; }
+        const hasScore = g.homeScore != null;
+        html += `<div class="card"><div class="game"><div class="team home"><span class="team-name">${g.home}</span></div><div class="score-block"><div class="score">${hasScore ? `${g.homeScore} – ${g.awayScore}` : "vs"}</div><div class="status ${g.status === "Live" ? "live" : ""}">${g.status}</div></div><div class="team away"><span class="team-name">${g.away}</span></div></div></div>`;
+      });
+      el.innerHTML = html;
+    }
+    function renderStandings(data) {
+      ["afc", "nfc"].forEach(conf => {
+        const key = conf.toUpperCase();
+        const tbody = document.querySelector(`#${conf}-table tbody`);
+        const rows = (data[key] || []).map((r, i) => `<tr><td class="team-cell ${i < 3 ? "playoff" : ""}">${r.team}</td><td>${r.w}</td><td>${r.l}</td><td>${r.t}</td><td>${r.pct.toFixed(3)}</td></tr>`).join("");
+        tbody.innerHTML = rows || "<tr><td colspan=\"5\">No data</td></tr>";
+      });
+    }
+    function renderStats(stats) {
+      document.getElementById("stats-grid").innerHTML = stats.map(s => `<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-value">${s.value}</div><div class="stat-sub">${s.sub}</div></div>`).join("");
+    }
+    async function fetchLive() {
+      if (!state.apiBase) throw new Error("No API base configured");
+      const base = state.apiBase.replace(/\/$/, "");
+      const eventsRes = await fetch(`${base}/api/v1/events?tournament=${state.tournamentId}&limit=30`);
+      if (!eventsRes.ok) throw new Error(`Events ${eventsRes.status}`);
+      const eventsJson = await eventsRes.json();
+      const games = (eventsJson.data || []).map(e => {
+        const home = e.participants?.home?.name || e.home?.name || "Home";
+        const away = e.participants?.away?.name || e.away?.name || "Away";
+        const score = e.score || {};
+        return {
+          home, away,
+          homeScore: score.home ?? score.current?.home ?? null,
+          awayScore: score.away ?? score.current?.away ?? null,
+          status: e.status?.description || e.status?.type || "Scheduled",
+          week: e.roundInfo?.round || e.round || null
+        };
+      });
+      return { games };
+    }
+    function loadDemo() {
+      renderSchedule(DEMO_GAMES);
+      renderStandings(DEMO_STANDINGS);
+      renderStats(DEMO_STATS);
+    }
+    document.getElementById("api-base").value = state.apiBase;
+    document.getElementById("tournament-id").value = state.tournamentId;
+    document.getElementById("save-settings").addEventListener("click", async () => {
+      const base = document.getElementById("api-base").value.trim();
+      const tid = document.getElementById("tournament-id").value.trim() || "9464";
+      localStorage.setItem("statthat_api", base);
+      localStorage.setItem("statthat_tid", tid);
+      state.apiBase = base;
+      state.tournamentId = tid;
+      const msg = document.getElementById("settings-msg");
+      if (!base) {
+        state.mode = "demo";
+        loadDemo();
+        msg.style.display = "block";
+        msg.textContent = "Saved. Using demo data.";
+        msg.style.color = "var(--steel)";
+        return;
+      }
+      msg.style.display = "block";
+      msg.textContent = "Connecting…";
+      msg.style.color = "var(--steel)";
+      try {
+        const { games } = await fetchLive();
+        state.mode = "live";
+        renderSchedule(games);
+        msg.textContent = `Connected. Loaded ${games.length} events.`;
+        msg.style.color = "var(--win)";
+      } catch (err) {
+        state.mode = "demo";
+        loadDemo();
+        msg.textContent = `Could not reach API (${err.message}). Showing demo data.`;
+        msg.style.color = "var(--loss)";
+      }
+    });
+    loadDemo();
+  </script>
+</body>
+</html>
