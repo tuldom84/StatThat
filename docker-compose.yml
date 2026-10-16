@@ -1,0 +1,42 @@
+# StatThat — runs sofascore_scraper as the statistics server
+#
+#   docker compose up -d
+#   # API + scraper UI at http://127.0.0.1:8000
+#
+# One-shot CLI (follow NFL, sync, status):
+#   docker compose run --rm --no-deps sofascore-scraper follows add tournament 9464 --name NFL --sport american-football --seasons last:1
+#   docker compose run --rm --no-deps sofascore-scraper sync
+#   docker compose run --rm --no-deps sofascore-scraper status
+#
+# See README.md for full Codespaces + NFL setup.
+
+services:
+  sofascore-scraper:
+    image: ghcr.io/tunjayoff/sofascore_scraper:latest
+    restart: unless-stopped
+    command: ["serve"]
+
+    # Codespaces and local: publish on all interfaces so the forwarded port works.
+    # For a public host, set SOFASCORE_SERVER__TOKEN and tighten ALLOWED_HOSTS.
+    ports:
+      - "8000:8000"
+
+    environment:
+      SOFASCORE_SERVER__ALLOWED_HOSTS: "localhost,127.0.0.1,[::1],*.githubpreview.dev,*.app.github.dev"
+      # Optional auth token for non-local access:
+      # SOFASCORE_SERVER__TOKEN: "change-me-to-a-long-random-string"
+
+    # Chromium needs more shared memory than Docker's default
+    shm_size: "1gb"
+
+    volumes:
+      - data:/app/data
+      - config:/app/config
+      - browser-profile:/app/browser-profile
+      - logs:/app/logs
+
+volumes:
+  data:
+  config:
+  browser-profile:
+  logs:
